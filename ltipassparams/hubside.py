@@ -5,11 +5,35 @@
 
 from typing import Dict
 from tljh.user_creating_spawner import UserCreatingSpawner
+from ltiauthenticator.lti11.auth import LTI11Authenticator
+from jupyterhub.handlers import BaseHandler
 import urllib.parse
 
 import logging
 log = logging.getLogger("LtiUserCreatingSpawner")
 log.setLevel(logging.DEBUG)
+
+
+class MyLTI11Authenticator(LTI11Authenticator):
+    async def authenticate(self, handler: BaseHandler, data: dict = None):
+        result = await super().authenticate(handler, data)
+        if result:
+            self.after_authenticate(result['name'], result['auth_state'])
+        return result
+    
+    def after_authenticate(self, name: str, auth_state: dict):
+        self.log.info("LTI Authentication successful! ==============")
+        self.log.info("name: %r", name)
+        self.log.info("auth_state: %r", auth_state)
+        
+        log.info("Trying to get the next link")
+        try:
+            custom_next = auth_state['custom_next']
+            parsed = parse_nbgitpuller_link(custom_next)
+            log.info("Parsed: %r", parsed)
+        except KeyError:
+            return
+
 
 class LtiUserCreatingSpawner(UserCreatingSpawner):
     auth_state: Dict[str, str]
@@ -40,14 +64,6 @@ class LtiUserCreatingSpawner(UserCreatingSpawner):
         self.auth_state = auth_state
         # should this go here, or in pre_spawn_start?
         self.environment['DEMO_FULL_NAME'] = auth_state['lis_person_name_full']
-
-        log.info("Trying to get the next link")
-        try:
-            custom_next = auth_state['custom_next']
-            parsed = parse_nbgitpuller_link(custom_next)
-            log.info("Parsed: %r", parsed)
-        except KeyError:
-            return
 
 
 def parse_nbgitpuller_link(next_url: str):

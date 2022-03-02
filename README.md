@@ -21,6 +21,10 @@ Add the following line to your configuration, e.g. in `/opt/tljh/config/jupyterh
 
     c.Authenticator.enable_auth_state = True
 
+Change the authenticator to use our subclass:
+
+    c.JupyterHub.authenticator_class = "ltipassparams.hubside.MyLTI11Authenticator"
+
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
     $ openssl rand -hex 32
