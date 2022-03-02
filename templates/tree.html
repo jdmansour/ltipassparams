@@ -1,0 +1,9 @@
+{% extends "templates/tree.html" %}
+{% block site %}
+  <div id="top-banner" style="border-bottom: 1px solid #ddd; background-color: #ffffcc; padding: 6px 0">
+    <div class="container">
+    You are logged in as {{ myuser }}
+    </div>
+  </div>
+{{ super() }}
+{% endblock %}
