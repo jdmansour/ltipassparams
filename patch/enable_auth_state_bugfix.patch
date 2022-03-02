@@ -1,0 +1,14 @@
+--- crypto.py	2022-03-01 21:27:21.744493135 +0100
++++ /opt/tljh/hub/lib/python3.8/site-packages/jupyterhub/crypto.py	2022-03-01 21:27:14.380480678 +0100
+@@ -93,7 +93,10 @@
+     @default('config')
+     def _config_default(self):
+         # load application config by default
+-        from .app import JupyterHub
++        try:
++            from __main__ import JupyterHub
++        except ModuleNotFoundError:
++            from .app import JupyterHub
+ 
+         if JupyterHub.initialized():
+             return JupyterHub.instance().config

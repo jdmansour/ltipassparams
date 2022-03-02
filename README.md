@@ -32,22 +32,7 @@ and then add the following to `/etc/systemd/system/jupyterhub.service`, replacin
 
 There is a bug in jupyterhub regarding enable_auth_state.  As a workaround, apply the following patch:
 
-```diff
---- /opt/tljh/hub/lib/python3.8/site-packages/jupyterhub/crypto.py      2022-02-28 12:45:02.542669150 +0100
-+++ crypto.py.orig      2022-02-28 12:44:52.094519801 +0100
-@@ -93,10 +93,7 @@
-    @default('config')
-    def _config_default(self):
-        # load application config by default
--        try:
--            from __main__ import JupyterHub
--        except ModuleNotFoundError:
--            from .app import JupyterHub
-+        from .app import JupyterHub
-
-        if JupyterHub.initialized():
-            return JupyterHub.instance().config
-```
+    sudo patch /opt/tljh/hub/lib/python3.8/site-packages/jupyterhub/crypto.py < patch/enable_auth_state_bugfix.patch
 
 ### Hub side
 
