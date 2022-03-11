@@ -52,27 +52,34 @@ def get(self: NotebookHandler, original_method, path):
     user_id = lti_params.get('user_id')
     if not user_id:
         log.warn("Could not get user_id from LTI parameters")
-    else:
-        log.info("user_id is %r", user_id)
-        for row in s:
-            log.info("row: %r", row['checkout_location'])
-            if row['checkout_location'] == path and row['user_id'] == user_id:
-                log.info("Found: %r", row)
-                # found
-                
-                self.additional_vars['launch_presentation_return_url'] = row['launch_presentation_return_url']
-                self.additional_vars['context_title'] = row['context_title']
-                self.additional_vars['resource_link_id'] = row['resource_link_id']
-                self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
-                break
-        else:
-            log.info("Did not find this notebook")
+        return original_method(path)
 
-    log.debug("In get %s", path)
-    result = original_method(path)
-    log.debug("result %r", result)
-    return result
+    log.info("user_id is %r", user_id)
+    row = find_nbgitpuller_lti_session(path, user_id)
 
+    if not row:
+        log.info("Did not find this notebook")
+        return original_method(path)
+
+    log.info("Found: %r", row)
+    # found
+    
+    self.additional_vars['launch_presentation_return_url'] = row['launch_presentation_return_url']
+    self.additional_vars['context_title'] = row['context_title']
+    self.additional_vars['resource_link_id'] = row['resource_link_id']
+    self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
+
+    return original_method(path)
+
+
+def find_nbgitpuller_lti_session(path: str, user_id: str):
+    """ Finds the LTI session belonging to a file that was
+        checked out by nbgitpuller. """
+    s = storage.get_storage()
+    for row in s:
+        if row['checkout_location'] == path and row['user_id'] == user_id:
+            return row
+    return None
 
 # This will be replaced at some point (JupyterHub 2.0) by
 # _jupyter_server_extension_paths() and
