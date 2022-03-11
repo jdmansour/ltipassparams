@@ -6,6 +6,7 @@ import logging
 import os
 import pwd
 from pathlib import Path
+from ltipassparams.monkey import monkey_patch
 
 from notebook.notebookapp import NotebookApp
 from notebook.base.handlers import IPythonHandler
@@ -19,9 +20,9 @@ log.setLevel(logging.DEBUG)
 # Inject template parameters from IPythonHandler.additional_vars
 # into the request
 
-orig_template_namespace = IPythonHandler.template_namespace
-def template_namespace(self: IPythonHandler):
-    result = orig_template_namespace.fget(self)
+@monkey_patch(IPythonHandler, 'template_namespace')
+def template_namespace(self: IPythonHandler, original_getter):
+    result = original_getter()
     try:
         result["myuser"] = "'Mysterious user of %s'" % self.temporary
     except AttributeError:
@@ -34,12 +35,10 @@ def template_namespace(self: IPythonHandler):
 
     return result
 
-IPythonHandler.template_namespace = property(template_namespace)
-
 # Monkey patch `get` handler to inject additional template variables:
 
-orig_get = NotebookHandler.get
-def get(self: NotebookHandler, path):
+@monkey_patch(NotebookHandler, 'get')
+def get(self: NotebookHandler, original_method, path):
     path = path.strip('/')
     self.temporary = path
 
@@ -70,11 +69,9 @@ def get(self: NotebookHandler, path):
             log.info("Did not find this notebook")
 
     log.debug("In get %s", path)
-    result = orig_get(self, path)
+    result = original_method(path)
     log.debug("result %r", result)
     return result
-
-NotebookHandler.get = get
 
 
 # This will be replaced at some point (JupyterHub 2.0) by
