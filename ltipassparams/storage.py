@@ -77,3 +77,22 @@ def store_launch_request(auth_state: dict):
     log.info("%d items in storage", len(storage))
     save_storage()
 
+
+def find_nbgitpuller_lti_session(path: str, user_id: str):
+    """ Finds the LTI session belonging to a file that was
+        checked out by nbgitpuller. """
+    s = get_storage()
+    for row in s:
+        log.info("Testing: %r", row['checkout_location'])
+        if row['checkout_location'] == path and row['user_id'] == user_id:
+            return row
+    
+    # Didn't find the particular file.  Now check if this file is part of a checkout
+    checkout_dir = path.split('/')[0]
+    for row in s:
+        row_dir = row['checkout_location'].split('/')[0]
+        log.info("Testing: %r", row_dir)
+        if row_dir == checkout_dir and row['user_id'] == user_id:
+            return row
+
+    return None

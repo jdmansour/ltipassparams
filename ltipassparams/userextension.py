@@ -6,13 +6,13 @@ import logging
 import os
 import pwd
 from pathlib import Path
-from ltipassparams.monkey import monkey_patch
 
-from notebook.notebookapp import NotebookApp
 from notebook.base.handlers import IPythonHandler
 from notebook.notebook.handlers import NotebookHandler
+from notebook.notebookapp import NotebookApp
 
-from . import storage
+from ltipassparams.monkey import monkey_patch
+from ltipassparams.storage import find_nbgitpuller_lti_session
 
 log = logging.getLogger('NotebookApp.LtiPassParams')
 log.setLevel(logging.DEBUG)
@@ -44,7 +44,6 @@ def get(self: NotebookHandler, original_method, path):
 
     self.additional_vars = {}
     # get the LTI launch associated with this path
-    s = storage.get_storage()
     log.info("Looking for: %r", path)
 
     # get the logged in LTI user
@@ -74,25 +73,6 @@ def get(self: NotebookHandler, original_method, path):
 
     return original_method(path)
 
-
-def find_nbgitpuller_lti_session(path: str, user_id: str):
-    """ Finds the LTI session belonging to a file that was
-        checked out by nbgitpuller. """
-    s = storage.get_storage()
-    for row in s:
-        log.info("Testing: %r", row['checkout_location'])
-        if row['checkout_location'] == path and row['user_id'] == user_id:
-            return row
-    
-    # Didn't find the particular file.  Now check if this file is part of a checkout
-    checkout_dir = path.split('/')[0]
-    for row in s:
-        row_dir = row['checkout_location'].split('/')[0]
-        log.info("Testing: %r", row_dir)
-        if row_dir == checkout_dir and row['user_id'] == user_id:
-            return row
-
-    return None
 
 # This will be replaced at some point (JupyterHub 2.0) by
 # _jupyter_server_extension_paths() and
