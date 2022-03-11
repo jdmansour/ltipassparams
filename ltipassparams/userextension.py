@@ -6,12 +6,76 @@ import logging
 import os
 import pwd
 from pathlib import Path
-from re import I
 
 from notebook.notebookapp import NotebookApp
+from notebook.base.handlers import IPythonHandler
+from notebook.notebook.handlers import NotebookHandler
+
+from . import storage
 
 log = logging.getLogger('NotebookApp.LtiPassParams')
 log.setLevel(logging.DEBUG)
+
+# Inject template parameters from IPythonHandler.additional_vars
+# into the request
+
+orig_template_namespace = IPythonHandler.template_namespace
+def template_namespace(self: IPythonHandler):
+    result = orig_template_namespace.fget(self)
+    try:
+        result["myuser"] = "'Mysterious user of %s'" % self.temporary
+    except AttributeError:
+        result["myuser"] = "Somebody"
+
+    try:
+        result.update(self.additional_vars)
+    except AttributeError:
+        pass
+
+    return result
+
+IPythonHandler.template_namespace = property(template_namespace)
+
+# Monkey patch `get` handler to inject additional template variables:
+
+orig_get = NotebookHandler.get
+def get(self: NotebookHandler, path):
+    path = path.strip('/')
+    self.temporary = path
+
+    self.additional_vars = {}
+    # get the LTI launch associated with this path
+    s = storage.get_storage()
+    log.info("Looking for: %r", path)
+
+    # get the logged in LTI user
+    lti_params = get_lti_params()
+    user_id = lti_params.get('user_id')
+    if not user_id:
+        log.warn("Could not get user_id from LTI parameters")
+    else:
+        log.info("user_id is %r", user_id)
+        for row in s:
+            log.info("row: %r", row['checkout_location'])
+            if row['checkout_location'] == path and row['user_id'] == user_id:
+                log.info("Found: %r", row)
+                # found
+                
+                self.additional_vars['launch_presentation_return_url'] = row['launch_presentation_return_url']
+                self.additional_vars['context_title'] = row['context_title']
+                self.additional_vars['resource_link_id'] = row['resource_link_id']
+                self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
+                break
+        else:
+            log.info("Did not find this notebook")
+
+    log.debug("In get %s", path)
+    result = orig_get(self, path)
+    log.debug("result %r", result)
+    return result
+
+NotebookHandler.get = get
+
 
 # This will be replaced at some point (JupyterHub 2.0) by
 # _jupyter_server_extension_paths() and

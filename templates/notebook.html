@@ -1,8 +1,15 @@
 {% extends "templates/notebook.html" %}
 {% block header %}
-  <div id="top-banner" style="border: 1px solid #ddd; background-color: #ffffcc; padding: 6px 0">
+  <div id="top-banner" style="border: 1px solid #ddd; background-color: #ffffcc; padding: 6px 0; position: relative">
+    <span style="position: absolute; right: 0; bottom: 0; font-size: 0.8em; color: #888">DEBUG</span>
     <div class="container">
-    You are logged in as {{ myuser }}
+      {% if resource_link_id %}
+      This notebook is part of the course <a href="{{ launch_presentation_return_url }}">{{ context_title }}</a>
+      &ndash; lis_result_sourcedid: {{ lis_result_sourcedid }}
+      {% else %}
+      This notebook is not part of a course
+      {% endif %}
+      <!-- - You are logged in as {{ myuser }} -->
     </div>
   </div>
 {{ super() }}
