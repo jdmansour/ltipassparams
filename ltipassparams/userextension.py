@@ -69,6 +69,9 @@ def get(self: NotebookHandler, original_method, path):
     self.additional_vars['resource_link_id'] = row['resource_link_id']
     self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
 
+    file_is_target = row['checkout_location'] == path
+    self.additional_vars['file_is_target'] = file_is_target
+
     return original_method(path)
 
 
@@ -77,8 +80,18 @@ def find_nbgitpuller_lti_session(path: str, user_id: str):
         checked out by nbgitpuller. """
     s = storage.get_storage()
     for row in s:
+        log.info("Testing: %r", row['checkout_location'])
         if row['checkout_location'] == path and row['user_id'] == user_id:
             return row
+    
+    # Didn't find the particular file.  Now check if this file is part of a checkout
+    checkout_dir = path.split('/')[0]
+    for row in s:
+        row_dir = row['checkout_location'].split('/')[0]
+        log.info("Testing: %r", row_dir)
+        if row_dir == checkout_dir and row['user_id'] == user_id:
+            return row
+
     return None
 
 # This will be replaced at some point (JupyterHub 2.0) by

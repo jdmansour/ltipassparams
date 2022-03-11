@@ -5,6 +5,9 @@
     <div class="container">
       {% if resource_link_id %}
       This notebook is part of the course <a href="{{ launch_presentation_return_url }}">{{ context_title }}</a>
+        {% if file_is_target %}
+        &ndash; This is the graded notebook
+        {% endif %}
       &ndash; lis_result_sourcedid: {{ lis_result_sourcedid }}
       {% else %}
       This notebook is not part of a course
