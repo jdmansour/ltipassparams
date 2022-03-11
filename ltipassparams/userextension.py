@@ -9,6 +9,7 @@ from pathlib import Path
 
 from notebook.base.handlers import IPythonHandler
 from notebook.notebook.handlers import NotebookHandler
+from notebook.tree.handlers import TreeHandler
 from notebook.notebookapp import NotebookApp
 
 from ltipassparams.monkey import monkey_patch
@@ -23,10 +24,6 @@ log.setLevel(logging.DEBUG)
 @monkey_patch(IPythonHandler, 'template_namespace')
 def template_namespace(self: IPythonHandler, original_getter):
     result = original_getter()
-    try:
-        result["myuser"] = "'Mysterious user of %s'" % self.temporary
-    except AttributeError:
-        result["myuser"] = "Somebody"
 
     try:
         result.update(self.additional_vars)
@@ -40,7 +37,6 @@ def template_namespace(self: IPythonHandler, original_getter):
 @monkey_patch(NotebookHandler, 'get')
 def get(self: NotebookHandler, original_method, path):
     path = path.strip('/')
-    self.temporary = path
 
     self.additional_vars = {}
     # get the LTI launch associated with this path
@@ -73,6 +69,12 @@ def get(self: NotebookHandler, original_method, path):
 
     return original_method(path)
 
+
+@monkey_patch(TreeHandler, 'get')
+def get(self: TreeHandler, original_method, path):
+    self.additional_vars = {}
+    self.additional_vars['myuser'] = "TreeUser"
+    return original_method(path)
 
 # This will be replaced at some point (JupyterHub 2.0) by
 # _jupyter_server_extension_paths() and
