@@ -41,6 +41,8 @@ def save_storage():
 def store_launch_request(auth_state: dict):
     storage = get_storage()
 
+    log.info("Storing launch request: %r", auth_state)
+
     data = auth_state.copy()
 
     try:
@@ -81,18 +83,36 @@ def store_launch_request(auth_state: dict):
 def find_nbgitpuller_lti_session(path: str, user_id: str):
     """ Finds the LTI session belonging to a file that was
         checked out by nbgitpuller. """
+
+    # TODO: we currently get "checkout_location is not a valid LTI launch param."
+    # we need to store the LTI params separately from the context.
+
     s = get_storage()
     for row in s:
-        log.info("Testing: %r", row['checkout_location'])
-        if row['checkout_location'] == path and row['user_id'] == user_id:
-            return row
+        if 'checkout_location' not in row:
+            continue
+        
+        try:
+            log.info("Testing: %r", row['checkout_location'])
+            if row['checkout_location'] == path and row['user_id'] == user_id:
+                return row
+        except KeyError:
+            log.exception("An exception occurred")
+            log.info("Skipping malformed row: %r", row)
     
     # Didn't find the particular file.  Now check if this file is part of a checkout
     checkout_dir = path.split('/')[0]
     for row in s:
-        row_dir = row['checkout_location'].split('/')[0]
-        log.info("Testing: %r", row_dir)
-        if row_dir == checkout_dir and row['user_id'] == user_id:
-            return row
+        if 'checkout_location' not in row:
+            continue
+
+        try:
+            row_dir = row['checkout_location'].split('/')[0]
+            log.info("Testing: %r", row_dir)
+            if row_dir == checkout_dir and row['user_id'] == user_id:
+                return row
+        except KeyError:
+            log.exception("An exception occurred")
+            log.info("Skipping malformed row: %r", row)
 
     return None
