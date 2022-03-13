@@ -1,5 +1,6 @@
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from email import contentmanager
 from multiprocessing import context
 import pickle
@@ -15,14 +16,28 @@ log.setLevel(logging.DEBUG)
 
 PICKLE_FILE = "/opt/tljh/state/ltipassparams.pickle"
 
-def load_storage():
+@dataclass
+class LtiSession:
+    lti_params: dict
+    checkout_location: Optional[str] = None
+
+def fix(row):
+    if isinstance(row, dict):
+        tmp = row.copy()
+        checkout_location = tmp.pop('checkout_location', None)
+        return LtiSession(checkout_location=checkout_location, lti_params=tmp)
+    else:
+        return row
+
+def load_storage() -> List[LtiSession]:
     try:
         with open(PICKLE_FILE, "rb") as f:
-            return pickle.load(f)
+            s = pickle.load(f)
+            return [fix(row) for row in s]
     except FileNotFoundError:
         return []
 
-def get_storage():
+def get_storage() -> List[LtiSession]:
     global _storage
     if _storage is None:
         _storage = load_storage()
@@ -45,6 +60,7 @@ def store_launch_request(auth_state: dict):
 
     data = auth_state.copy()
 
+    new_session = LtiSession(lti_params=data)
     try:
         log.info("Getting custom_next")
         custom_next = auth_state['custom_next']
@@ -57,7 +73,7 @@ def store_launch_request(auth_state: dict):
             if urlpath.startswith("tree/"):
                 urlpath = urlpath[5:]
             log.info("checkout location: %r" % urlpath)
-            data['checkout_location'] = urlpath
+            new_session.checkout_location = urlpath
 
         # log.info("Parsed: %r", parsed)
     except KeyError:
@@ -66,16 +82,16 @@ def store_launch_request(auth_state: dict):
 
     # check if this pair of resource_link_id / user_id exists
     for i in range(len(storage)):
-        row = storage[i]
+        row = storage[i].lti_params
         if row['resource_link_id'] == data['resource_link_id'] and row['user_id'] == data['user_id']:
             # if so, update the row
             log.info("Updating exising session for this resource_link_id / user_id pair")
-            storage[i] = data
+            storage[i] = new_session
             break
     else:
-        storage.append(data)
+        storage.append(new_session)
 
-    log.info("checkout_location: %r", data.get("checkout_location", "-"))
+    log.info("checkout_location: %r", new_session.checkout_location)
     log.info("%d items in storage", len(storage))
     save_storage()
 
@@ -88,31 +104,31 @@ def find_nbgitpuller_lti_session(path: str, user_id: str):
     # we need to store the LTI params separately from the context.
 
     s = get_storage()
-    for row in s:
-        if 'checkout_location' not in row:
+    for sess in s:
+        if sess.checkout_location is None:
             continue
         
         try:
-            log.info("Testing: %r", row['checkout_location'])
-            if row['checkout_location'] == path and row['user_id'] == user_id:
-                return row
+            log.info("Testing: %r", sess.checkout_location)
+            if sess.checkout_location == path and sess.lti_params['user_id'] == user_id:
+                return sess
         except KeyError:
             log.exception("An exception occurred")
-            log.info("Skipping malformed row: %r", row)
+            log.info("Skipping malformed row: %r", sess)
     
     # Didn't find the particular file.  Now check if this file is part of a checkout
     checkout_dir = path.split('/')[0]
-    for row in s:
-        if 'checkout_location' not in row:
+    for sess in s:
+        if sess.checkout_location is None:
             continue
 
         try:
-            row_dir = row['checkout_location'].split('/')[0]
+            row_dir = sess.checkout_location.split('/')[0]
             log.info("Testing: %r", row_dir)
-            if row_dir == checkout_dir and row['user_id'] == user_id:
-                return row
+            if row_dir == checkout_dir and sess.lti_params['user_id'] == user_id:
+                return sess
         except KeyError:
             log.exception("An exception occurred")
-            log.info("Skipping malformed row: %r", row)
+            log.info("Skipping malformed row: %r", sess)
 
     return None

@@ -105,8 +105,8 @@ class SubmitForGradingHandler(IPythonHandler):
 
         notebook = "MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb"
         user_id = get_lti_params()['user_id']
-        session_params = find_nbgitpuller_lti_session(notebook, user_id).copy()
-        del session_params['checkout_location']
+        session = find_nbgitpuller_lti_session(notebook, user_id)
+        session_params = session.lti_params
 
         self.log.info("LTI session is: %r", session_params)
 
