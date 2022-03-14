@@ -38,7 +38,7 @@ def template_namespace(self: IPythonHandler, original_getter):
 # Monkey patch `get` handler to inject additional template variables:
 
 @monkey_patch(NotebookHandler, 'get')
-def get(self: NotebookHandler, original_method, path):
+def NotebookHandler_get(self: NotebookHandler, original_method, path):
     path = path.strip('/')
 
     self.additional_vars = {}
@@ -75,7 +75,7 @@ def get(self: NotebookHandler, original_method, path):
 
 
 @monkey_patch(TreeHandler, 'get')
-def get(self: TreeHandler, original_method, path):
+def TreeHandler_get(self: TreeHandler, original_method, path):
     self.additional_vars = {}
     self.additional_vars['myuser'] = "TreeUser"
     return original_method(path)
@@ -167,7 +167,7 @@ def load_jupyter_server_extension(serverapp: NotebookApp):
             f.write("%s: %s\n" % (k, v))
 
 
-def get_lti_params():
+def get_lti_params() -> dict[str, str]:
     """ Get LTI variables from environment """
     lti = {}
     for k, v in os.environ.items():
