@@ -1,12 +1,10 @@
 
-from contextlib import contextmanager
-from dataclasses import dataclass
-from email import contentmanager
-from multiprocessing import context
 import pickle
-from typing import Optional, List
+from dataclasses import dataclass
+from typing import List, Optional
 
-from .nbgitpuller_helper import parse_nbgitpuller_link
+from ltipassparams.utils import find, indexof
+from ltipassparams.nbgitpuller_helper import parse_nbgitpuller_link
 
 _storage: Optional[List] = None
 
@@ -20,6 +18,12 @@ PICKLE_FILE = "/opt/tljh/state/ltipassparams.pickle"
 class LtiSession:
     lti_params: dict
     checkout_location: Optional[str] = None
+
+    @property
+    def checkout_root(self) -> Optional[str]:
+        if self.checkout_location is None:
+            return None
+        return self.checkout_location.split("/")[0]
 
 def fix(row):
     if isinstance(row, dict):
@@ -81,13 +85,15 @@ def store_launch_request(auth_state: dict):
         pass
 
     # check if this pair of resource_link_id / user_id exists
-    for i in range(len(storage)):
-        row = storage[i].lti_params
-        if row['resource_link_id'] == data['resource_link_id'] and row['user_id'] == data['user_id']:
-            # if so, update the row
-            log.info("Updating exising session for this resource_link_id / user_id pair")
-            storage[i] = new_session
-            break
+
+    i = indexof(storage, lambda s: (
+        s.lti_params['resource_link_id'] == data['resource_link_id'] and
+        s.lti_params['user_id'] == data['user_id']
+    ))
+
+    if i is not None:
+        log.info("Updating exising session for this resource_link_id / user_id pair")
+        storage[i] = new_session
     else:
         storage.append(new_session)
 
@@ -96,39 +102,30 @@ def store_launch_request(auth_state: dict):
     save_storage()
 
 
-def find_nbgitpuller_lti_session(path: str, user_id: str):
+def find_nbgitpuller_lti_session(path: str, user_id: str) -> Optional[LtiSession]:
     """ Finds the LTI session belonging to a file that was
         checked out by nbgitpuller. """
 
     # TODO: we currently get "checkout_location is not a valid LTI launch param."
     # we need to store the LTI params separately from the context.
 
-    s = get_storage()
-    for sess in s:
-        if sess.checkout_location is None:
-            continue
-        
-        try:
-            log.info("Testing: %r", sess.checkout_location)
-            if sess.checkout_location == path and sess.lti_params['user_id'] == user_id:
-                return sess
-        except KeyError:
-            log.exception("An exception occurred")
-            log.info("Skipping malformed row: %r", sess)
-    
-    # Didn't find the particular file.  Now check if this file is part of a checkout
-    checkout_dir = path.split('/')[0]
-    for sess in s:
-        if sess.checkout_location is None:
-            continue
+    storage = get_storage()
 
-        try:
-            row_dir = sess.checkout_location.split('/')[0]
-            log.info("Testing: %r", row_dir)
-            if row_dir == checkout_dir and sess.lti_params['user_id'] == user_id:
-                return sess
-        except KeyError:
-            log.exception("An exception occurred")
-            log.info("Skipping malformed row: %r", sess)
+    # Try to find this particular file
+    session = find(storage, lambda s: (
+        s.checkout_location == path and
+        s.lti_params['user_id'] == user_id
+    ))
 
-    return None
+    if session is not None:
+        return session
+
+    # Try to find a checkout that this file is part of
+    find_root = path.split('/')[0]
+    session = find(storage, lambda s: (
+        s.checkout_root == find_root and
+        s.lti_params['user_id'] == user_id
+    ))
+
+    return session
+

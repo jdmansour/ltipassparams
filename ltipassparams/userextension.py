@@ -6,7 +6,6 @@ import logging
 import os
 import pwd
 from pathlib import Path
-import random
 
 import lti
 
@@ -54,12 +53,13 @@ def get(self: NotebookHandler, original_method, path):
         return original_method(path)
 
     log.info("user_id is %r", user_id)
-    row = find_nbgitpuller_lti_session(path, user_id)
+    session = find_nbgitpuller_lti_session(path, user_id)
 
-    if not row:
+    if not session:
         log.info("Did not find this notebook")
         return original_method(path)
 
+    row = session.lti_params
     log.info("Found: %r", row)
     # found
     
@@ -68,7 +68,7 @@ def get(self: NotebookHandler, original_method, path):
     self.additional_vars['resource_link_id'] = row['resource_link_id']
     self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
 
-    file_is_target = row['checkout_location'] == path
+    file_is_target = (session.checkout_location == path)
     self.additional_vars['file_is_target'] = file_is_target
 
     return original_method(path)
