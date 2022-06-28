@@ -15,6 +15,8 @@ sudo /opt/tljh/user/bin/pip install -e .
 sudo ln -fs $PWD/jupyter-config/jupyter_notebook_config.d/ltipassparams.json /opt/tljh/user/etc/jupyter/jupyter_notebook_config.d/
 # Install jupyterhub part
 sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_spawner.py /opt/tljh/config/jupyterhub_config.d/
+# Work in progress:
+#sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_grading.py /opt/tljh/config/jupyterhub_config.d/
 ```
 
 Add the following line to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
