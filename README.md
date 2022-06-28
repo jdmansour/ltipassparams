@@ -38,15 +38,33 @@ There is a bug in jupyterhub regarding enable_auth_state.  As a workaround, appl
 
     sudo patch /opt/tljh/hub/lib/python3.8/site-packages/jupyterhub/crypto.py < patch/enable_auth_state_bugfix.patch
 
+## Architecture
+
 ### Hub side
 
-Right now this just uses the LtiUserCreatingSpawner as a hook. Maybe it is even sufficient to set `auth_state_hook` without a class.
+The hub part is implemented by subclassing the spawner. Maybe it would even be sufficient to use the `auth_state_hook` configuration option without a class?
 
-### User server side
+- LMS sends the user to the JupyterHub
+- User is authenticated
+- When authentication is complete, the launch request is stored in a database. If nbgitpuller was used, this remembers the checkout location.
+- If not running already, the user server is spawned.
+- `LtiUserCreatingSpawner.auth_state_hook()` gets called by JupyterHub. We store the `auth_state`.
+- `LtiUserCreatingSpawner.start()` gets called. This is supposed to start the child process (user server). We inject the auth state via environment variables.
+    - ⚠️ What if the user server is already running, but we start a new LTI session? - The new launch request will still be stored in the database.
+    - ⚠️ We shouldn't send all the LTI variables via environment vars, but only the ones we need. What is the security model of Jupyter? Can the user run untrusted code in the user server (not just the kernels)?
 
-Here we use an extension.
+### User-server side
+
+In the user's server, we use a serverextension. This implements a few things:
+
+- For testing: When the user extension is loaded, we call `get_lti_params()` and write the LTI params to a text file.
+- For testing: We hook the "tree" view and the "notebook" view and output some debugging info to the header. Including:
+  - Current LTI user
+  - Is this notebook part of a nbgitpuller checkout / LTI session
+- A grading endpoint at `/user/<userid>/ltipassparams/submitforgrading`.  This reports back via LTI to the LMS.  Currenty, the notebook name and score are hardcoded.
 
 ## Todo
+- Don't expose all LTI variables to the user's server
 - ...
 
 ## Compatibility
