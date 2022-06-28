@@ -27,30 +27,14 @@ class MyLTI11Authenticator(LTI11Authenticator):
 
 
 class LtiUserCreatingSpawner(UserCreatingSpawner):
-    auth_state: Dict[str, str]
-
-    async def start(self):
-        try:
-            keys_to_save = self.saved_auth_state.keys()
-            for key in keys_to_save:
-                envname = f"LTI_{key.upper()}"
-                self.environment[envname] = self.saved_auth_state[key]
-
-        except:
-            log.exception("An exception occurred")
-            pass
-
-        result = await super().start()
-        return result
-
     def auth_state_hook(self, spawner, auth_state):
         log.info("auth_state_hook")
         if auth_state is None:
             log.error("Error, auth_state is None")
             log.error("Make sure you have set `c.Authenticator.enable_auth_state = True` in your jupyterhub configuration.")
-            self.saved_auth_state = {}
             return
-        # This doesn't reach the child server
-        self.saved_auth_state = auth_state
-        # should this go here, or in pre_spawn_start?
-        self.environment['DEMO_FULL_NAME'] = auth_state['lis_person_name_full']
+
+        # Pass LTI variables to the user server via environment variables
+        for key, value in auth_state.items():
+            envname = f"LTI_{key.upper()}"
+            self.environment[envname] = value
