@@ -3,13 +3,11 @@
 # It saves the LTI parameters, so that they can be read on
 # the user server side.
 
-from typing import Dict
 from tljh.user_creating_spawner import UserCreatingSpawner
 from ltiauthenticator.lti11.auth import LTI11Authenticator
 from jupyterhub.handlers import BaseHandler
 
 from . import storage
-from .nbgitpuller_helper import parse_nbgitpuller_link
 
 import logging
 log = logging.getLogger("LtiUserCreatingSpawner")
