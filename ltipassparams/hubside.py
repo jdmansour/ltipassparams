@@ -20,19 +20,10 @@ class MyLTI11Authenticator(LTI11Authenticator):
     async def authenticate(self, handler: BaseHandler, data: dict = None):
         result = await super().authenticate(handler, data)
         if result:
-            self.after_authenticate(result['name'], result['auth_state'])
+            # After logging in via LTI
+            self.log.info("LTI Authentication successful! ==============")
+            storage.store_launch_request(result['auth_state'])
         return result
-    
-    def after_authenticate(self, name: str, auth_state: dict):
-        self.log.info("LTI Authentication successful! ==============")
-        
-        storage.store_launch_request(auth_state)
-
-        try:
-            custom_next = auth_state['custom_next']
-            parsed = parse_nbgitpuller_link(custom_next)
-        except KeyError:
-            return
 
 
 class LtiUserCreatingSpawner(UserCreatingSpawner):
