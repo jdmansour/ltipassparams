@@ -38,7 +38,7 @@ def load_storage() -> List[LtiSession]:
         with open(PICKLE_FILE, "rb") as f:
             s = pickle.load(f)
             return [fix(row) for row in s]
-    except FileNotFoundError:
+    except (FileNotFoundError, EOFError):
         return []
 
 def get_storage() -> List[LtiSession]:
