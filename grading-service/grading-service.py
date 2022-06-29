@@ -11,6 +11,7 @@ In a real app, the notebook would be placed into a queue and the workflow would 
 import json
 import logging
 import os
+import textwrap
 from urllib.parse import urlparse
 
 import lti
@@ -25,14 +26,20 @@ log = logging.getLogger("grading-service")
 class GradingHandler(HubAuthenticated, RequestHandler):
     @authenticated
     def get(self):
-        page = """
+        page = textwrap.dedent("""
         <html>
         <form method="post">
-        <input type="text" name="notebook_path" value="MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb">
-        <input type="text" name="debug_grade" value="0.5">
-        <input type="submit" value="Submit">
+        <p>
+            <label for="notebook">Notebook to grade:</label>
+            <input type="text" name="notebook_path" value="MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb">
+        </p>
+        <p>
+            <label for="grade">Grade:</label>
+            <input type="text" name="debug_grade" value="0.5">
+        </p>
+        <p><input type="submit" value="Submit"></p>
         </form>
-        </html>"""
+        </html>""")
         self.write(page)
 
 
