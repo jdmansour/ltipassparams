@@ -26,12 +26,14 @@ log = logging.getLogger("grading-service")
 class GradingHandler(HubAuthenticated, RequestHandler):
     @authenticated
     def get(self):
-        page = textwrap.dedent("""
+        self.write(textwrap.dedent("""\
+        <!DOCTYPE html>
         <html>
+        <h1>Submit grading</h1>
         <form method="post">
         <p>
             <label for="notebook">Notebook to grade:</label>
-            <input type="text" name="notebook_path" value="MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb">
+            <input type="text" name="notebook_path" value="MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb" size="40">
         </p>
         <p>
             <label for="grade">Grade:</label>
@@ -39,8 +41,28 @@ class GradingHandler(HubAuthenticated, RequestHandler):
         </p>
         <p><input type="submit" value="Submit"></p>
         </form>
-        </html>""")
-        self.write(page)
+        <h1>Debug</h1>
+        <h2>Current User:</h2>
+        <pre>"""))
+
+        user = self.get_current_user()
+        self.write(json.dumps(user, indent=2) + "\n")
+        
+        self.write(textwrap.dedent("""\
+        </pre>
+        <h2>LTI Sessions for this user:</h2>
+        <pre>"""))
+
+        storage = get_storage()
+        for sess in storage:
+            if sess.lti_params['user_id'] != user['name']:
+                continue
+            self.write(f"Folder: {sess.checkout_root}\n")
+            self.write(f"Start file: {sess.checkout_location}\n")
+            self.write(f"LTI Session:\n")
+            self.write(json.dumps(sess.lti_params, indent=2) + "\n\n")
+
+        self.write("</pre></html>")
 
 
     @authenticated
@@ -96,6 +118,7 @@ def main():
             (r'.*', GradingHandler),
         ],
         cookie_secret=os.urandom(32),
+        debug=True,
     )
 
     http_server = HTTPServer(app)
