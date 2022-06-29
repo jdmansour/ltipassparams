@@ -11,21 +11,19 @@ Install via pip. When installing for development (`install -e .`), you can link 
 ```bash
 sudo /opt/tljh/hub/bin/pip install -e .
 sudo /opt/tljh/user/bin/pip install -e .
-# Install user server extension
-sudo ln -fs $PWD/jupyter-config/jupyter_notebook_config.d/ltipassparams.json /opt/tljh/user/etc/jupyter/jupyter_notebook_config.d/
-# Install jupyterhub part
-sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_spawner.py /opt/tljh/config/jupyterhub_config.d/
-# Work in progress:
-#sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_grading.py /opt/tljh/config/jupyterhub_config.d/
+# Install the grading service (demonstration)
+sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_grading.py /opt/tljh/config/jupyterhub_config.d/
+# Install a user server extension (this was just a test)
+# sudo ln -fs $PWD/jupyter-config/jupyter_notebook_config.d/ltipassparams.json /opt/tljh/user/etc/jupyter/jupyter_notebook_config.d/
 ```
 
-Add the following line to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
+Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
 
     c.Authenticator.enable_auth_state = True
 
-Change the authenticator to use our subclass:
-
-    c.JupyterHub.authenticator_class = "ltipassparams.hubside.MyLTI11Authenticator"
+    import ltipassparams.hubside
+    c.JupyterHub.authenticator_class = ltipassparams.hubside.MyLTI11Authenticator
+    c.JupyterHub.spawner_class = ltipassparams.hubside.LtiUserCreatingSpawner
 
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
@@ -48,14 +46,23 @@ The hub part is implemented by subclassing the spawner. Maybe it would even be s
 
 - LMS sends the user to the JupyterHub
 - User is authenticated
-- When authentication is complete, the launch request is stored in a database. If nbgitpuller was used, this remembers the checkout location.
+- When authentication is complete, the launch request is stored in a database. If nbgitpuller was used, it remembers the folder that the repository was cloned into.
 - If not running already, the user server is spawned.
-- `LtiUserCreatingSpawner.auth_state_hook()` gets called by JupyterHub. We store the `auth_state`.
-- `LtiUserCreatingSpawner.start()` gets called. This is supposed to start the child process (user server). We inject the auth state via environment variables.
+- `LtiUserCreatingSpawner.auth_state_hook()` gets called by JupyterHub. We store the `auth_state`, and inject it into the child process via environment variables.
     - ⚠️ What if the user server is already running, but we start a new LTI session? - The new launch request will still be stored in the database.
     - ⚠️ We shouldn't send all the LTI variables via environment vars, but only the ones we need. What is the security model of Jupyter? Can the user run untrusted code in the user server (not just the kernels)?
 
+### Grading service
+
+To implement grading, we use a [JupyterHub Service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html). This does not run as the user, but is a subprocess of the hub, so it is safe. However, it has access to the user's session and ID (via cookies or OAuth).
+
+You can access a demonstration endpoint at `/services/grading-service/`, where you can submit a score for any notebook. In reality, you would `POST` the notebook path to be graded to this URL, and it would grade it for the currently logged in user.
+
+The service checks if the file is part of an NBGitpuller checkout, finds which LTI session that belongs to, and reports back the score.
+
 ### User-server side
+
+**⚠️ Note: the following is obsolete at the moment. It doesn't really make sense to expose most of the LTI variables to the user server.**
 
 In the user's server, we use a serverextension. This implements a few things:
 
@@ -67,7 +74,8 @@ In the user's server, we use a serverextension. This implements a few things:
 
 ## Todo
 - Don't expose all LTI variables to the user's server
-- ...
+- Use a proper database for LTI sessions, e.g. SQLite
+- Make LTI sessions expire?
 
 ## Compatibility
 
