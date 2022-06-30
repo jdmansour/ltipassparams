@@ -8,10 +8,6 @@ from jupyterhub.handlers import BaseHandler
 
 from . import storage
 
-import logging
-log = logging.getLogger("LtiUserCreatingSpawner")
-log.setLevel(logging.DEBUG)
-
 
 class MyLTI11Authenticator(LTI11Authenticator):
     async def authenticate(self, handler: BaseHandler, data: dict = None):
