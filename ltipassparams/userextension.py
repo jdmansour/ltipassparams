@@ -90,74 +90,11 @@ def TreeHandler_get(self: TreeHandler, original_method, path):
     return original_method(path)
 
 
-# The following is just a demonstration.  The grading code should probably not
-# run in the context of the user server, but on the hub.  The user server does
-# not have access to the LTI secrets.
-#
-# The real flow should be something like:
-#  - User authorizes submission for grading
-#  - Request goes to user server
-#  - User server passes this to hub
-#  - Hub performs autograding (or passes the notebook on to the tutor, etc.)
-#  - Hub submits result back to LTI consumer
-
-class SubmitForGradingHandler(IPythonHandler):
-    def get(self):
-        self.log.info("SubmitForGradingHandler.get")
-        client_key = "27edf680a5fe3efbde0d07b18edab5ec57241e04dc78725b5d69ccd4e52acd95"
-        secret = "db7a1eee84ae16378fa0e9f02eb805f9df412b61494b79f5a5a7fe84f8d7f84f"
-
-        self.log.info("lti params: %r", get_lti_params())
-
-        # todo: get the LTI params for a certain file.
-        # this just gets the last sent ones from the env vars
-
-        notebook = "MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb"
-        user_id = get_lti_params()['user_id']
-        session = find_nbgitpuller_lti_session(notebook, user_id)
-        session_params = session.lti_params
-
-        self.log.info("LTI session is: %r", session_params)
-
-        p = lti.ToolProvider(
-            consumer_key=client_key,
-            consumer_secret=secret,
-            params=session_params
-        )
-
-        self.log.info("p.is_outcome_service: %r", bool(p.is_outcome_service()))
-        self.log.info("p.username: %r", p.username())
-
-        # random number between 0 and 10
-        # score = float(random.randint(0, 10)) / 10.
-        score = 0.52
-
-        self.log.info("Submitting... %f", score)
-        
-        # p.post_delete_result()
-        res = p.post_replace_result(score, result_data={'text': 'hallo'})
-        self.log.info("res: %r", res)
-        self.log.info("is_success: %r", res.is_success())
-
-        self.finish(
-            "Hello from SubmitForGradingHandler\n" +
-            f"File is: {notebook}\n" +
-            f"Reporting back score: {score}\n"
-        )
-
-        
-
-
 # This will be replaced at some point (JupyterHub 2.0) by
 # _jupyter_server_extension_paths() and
 # _ load_jupyter_server_extension()
 def load_jupyter_server_extension(serverapp: NotebookApp):
     log.debug("In load_jupyter_server_extension")
-
-    web_app = serverapp.web_app
-    host_pattern = '.*$'
-    route_pattern = url_path_join(web_app.settings['base_url'], '/ltipassparams/submitforgrading')
-    web_app.add_handlers(host_pattern, [(route_pattern, SubmitForGradingHandler)])
 
     # get linux user
     username = pwd.getpwuid(os.getuid())[0]
