@@ -4,15 +4,12 @@
     <span style="position: absolute; right: 0; bottom: 0; font-size: 0.8em; color: #888">DEBUG</span>
     <div class="container">
       {% if resource_link_id %}
-      This notebook is part of the course <a href="{{ launch_presentation_return_url }}">{{ context_title }}</a>
-        {% if file_is_target %}
-        &ndash; This is the graded notebook
-        {% endif %}
-      &ndash; lis_result_sourcedid: {{ lis_result_sourcedid }}
+      Notebook is part of the course <a href="{{ launch_presentation_return_url }}">{{ context_title }}</a>
+      | Is launch notebook: {% if file_is_target %}yes{% else %}no{% endif %}
       {% else %}
-      This notebook is not part of a course
+      Notebook is NOT part of a course
       {% endif %}
-      <!-- - You are logged in as {{ myuser }} -->
+      - You are logged in as '{{ user_id }}'
     </div>
   </div>
 {{ super() }}

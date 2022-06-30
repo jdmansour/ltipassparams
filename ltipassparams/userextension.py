@@ -45,14 +45,19 @@ def NotebookHandler_get(self: NotebookHandler, original_method, path):
     # get the LTI launch associated with this path
     log.info("Looking for: %r", path)
 
-    # get the logged in LTI user
-    lti_params = get_lti_params()
-    user_id = lti_params.get('user_id')
-    if not user_id:
-        log.warn("Could not get user_id from LTI parameters")
+    # get the logged in user
+    user = self.get_current_user()
+    try:
+        user_id = user['name']
+    except TypeError:
+        log.warn("Could not get the user ID")
         return original_method(path)
 
-    log.info("user_id is %r", user_id)
+    self.additional_vars['user_id'] = user_id
+    self.log.info("user_id is %r", user_id)
+
+    # TODO: we should probably get this via a REST api,
+    # so we don't have sensitive data in the user process
     session = find_nbgitpuller_lti_session(path, user_id)
 
     if not session:
@@ -66,7 +71,6 @@ def NotebookHandler_get(self: NotebookHandler, original_method, path):
     self.additional_vars['launch_presentation_return_url'] = row['launch_presentation_return_url']
     self.additional_vars['context_title'] = row['context_title']
     self.additional_vars['resource_link_id'] = row['resource_link_id']
-    self.additional_vars['lis_result_sourcedid'] = row['lis_result_sourcedid']
 
     file_is_target = (session.checkout_location == path)
     self.additional_vars['file_is_target'] = file_is_target
@@ -77,7 +81,12 @@ def NotebookHandler_get(self: NotebookHandler, original_method, path):
 @monkey_patch(TreeHandler, 'get')
 def TreeHandler_get(self: TreeHandler, original_method, path):
     self.additional_vars = {}
-    self.additional_vars['myuser'] = "TreeUser"
+    user = self.get_current_user()
+    try:
+        user_id = user['name']
+    except TypeError:
+        user_id = "anonymous"
+    self.additional_vars['user_id'] = user_id
     return original_method(path)
 
 
