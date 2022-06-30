@@ -23,7 +23,6 @@ Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_co
 
     import ltipassparams.hubside
     c.JupyterHub.authenticator_class = ltipassparams.hubside.MyLTI11Authenticator
-    c.JupyterHub.spawner_class = ltipassparams.hubside.LtiUserCreatingSpawner
 
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
@@ -42,15 +41,12 @@ There is a bug in jupyterhub regarding enable_auth_state.  As a workaround, appl
 
 ### Hub side
 
-The hub part is implemented by subclassing the spawner. Maybe it would even be sufficient to use the `auth_state_hook` configuration option without a class?
+The hub part is implemented by subclassing the authenticator. Maybe it would even be sufficient to use the `auth_state_hook` configuration option without a class?
 
 - LMS sends the user to the JupyterHub
 - User is authenticated
 - When authentication is complete, the launch request is stored in a database. If nbgitpuller was used, it remembers the folder that the repository was cloned into.
 - If not running already, the user server is spawned.
-- `LtiUserCreatingSpawner.auth_state_hook()` gets called by JupyterHub. We store the `auth_state`, and inject it into the child process via environment variables.
-    - ⚠️ What if the user server is already running, but we start a new LTI session? - The new launch request will still be stored in the database.
-    - ⚠️ We shouldn't send all the LTI variables via environment vars, but only the ones we need. What is the security model of Jupyter? Can the user run untrusted code in the user server (not just the kernels)?
 
 ### Grading service
 
@@ -64,16 +60,11 @@ The service checks if the file is part of an NBGitpuller checkout, finds which L
 
 **⚠️ Note: the following is obsolete at the moment. It doesn't really make sense to expose most of the LTI variables to the user server.**
 
-In the user's server, we use a serverextension. This implements a few things:
-
-- For testing: When the user extension is loaded, we call `get_lti_params()` and write the LTI params to a text file.
-- For testing: We hook the "tree" view and the "notebook" view and output some debugging info to the header. Including:
+For testing, we have a userextension that adds some debugging info to the "tree" view and the "notebook" view, including:
   - Current LTI user
   - Is this notebook part of a nbgitpuller checkout / LTI session
-- A grading endpoint at `/user/<userid>/ltipassparams/submitforgrading`.  This reports back via LTI to the LMS.  Currenty, the notebook name and score are hardcoded.
 
 ## Todo
-- Don't expose all LTI variables to the user's server
 - Use a proper database for LTI sessions, e.g. SQLite
 - Make LTI sessions expire?
 

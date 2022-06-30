@@ -3,17 +3,11 @@
 # module (currently via environment variables).
 
 import logging
-import os
-import pwd
-from pathlib import Path
-
-import lti
 
 from notebook.base.handlers import IPythonHandler
 from notebook.notebook.handlers import NotebookHandler
 from notebook.tree.handlers import TreeHandler
 from notebook.notebookapp import NotebookApp
-from notebook.utils import url_path_join
 
 from ltipassparams.monkey import monkey_patch
 from ltipassparams.storage import find_nbgitpuller_lti_session
@@ -95,29 +89,3 @@ def TreeHandler_get(self: TreeHandler, original_method, path):
 # _ load_jupyter_server_extension()
 def load_jupyter_server_extension(serverapp: NotebookApp):
     log.debug("In load_jupyter_server_extension")
-
-    # get linux user
-    username = pwd.getpwuid(os.getuid())[0]
-    log.debug("Logged in user: %s", username)
-
-    lti = get_lti_params()
-    log.info("LTI: %s", lti)
-    if not lti:
-        log.warn("No LTI params found. Is the jupyterhub part of ltipassparams running, "
-                 "and is c.Authenticator.enable_auth_state = True?")
-
-    filename = Path.home() / "userinfo.txt"
-    with open(filename, "w") as f:
-        for k, v in lti.items():
-            log.debug("%s: %s", k, v)
-            f.write("%s: %s\n" % (k, v))
-
-
-def get_lti_params() -> dict[str, str]:
-    """ Get LTI variables from environment """
-    lti = {}
-    for k, v in os.environ.items():
-        if k.startswith('LTI_'):
-            varname = k[4:].lower()
-            lti[varname] = v
-    return lti
