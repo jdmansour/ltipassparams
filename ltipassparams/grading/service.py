@@ -8,10 +8,13 @@ be graded and the result passed to the LTI consumer.
 In a real app, the notebook would be placed into a queue and the workflow would be a bit more complex.
 """
 
+import html
 import json
 import logging
 import os
+from pprint import pformat
 import textwrap
+from typing import Optional
 from urllib.parse import urlparse
 
 import lti
@@ -20,6 +23,11 @@ from ltipassparams.storage import find_nbgitpuller_lti_session, get_storage
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, authenticated
+import traitlets.config
+import traitlets.traitlets
+import psutil
+
+from ltiauthenticator.lti11.auth import LTI11Authenticator
 
 log = logging.getLogger("grading-service")
 
@@ -63,6 +71,13 @@ class GradingHandler(HubAuthenticated, RequestHandler):
             self.write(f"lti_params:\n")
             self.write(json.dumps(sess.lti_params, indent=2) + "\n\n")
 
+        self.write("</pre><pre>")
+        self.write("Environment:\n" + pformat(dict(os.environ)) + "\n")
+
+        self.write("</pre><pre>")
+        consumers = get_consumers()
+        self.write("LTI1.1 consumers:\n" + html.escape(pformat(consumers)) + "\n")
+        
         self.write("</pre></html>")
 
 
@@ -86,9 +101,9 @@ class GradingHandler(HubAuthenticated, RequestHandler):
 
             return
         
-        # TODO: where to get this from??
-        client_key = "27edf680a5fe3efbde0d07b18edab5ec57241e04dc78725b5d69ccd4e52acd95"
-        secret = "db7a1eee84ae16378fa0e9f02eb805f9df412b61494b79f5a5a7fe84f8d7f84f"
+        consumers = get_consumers()
+        client_key = session.oauth_consumer_key
+        secret = consumers[client_key]
 
         # for debugging purposes, we allow passing the grade as a parameter
         score = float(self.get_argument('debug_grade'))
@@ -127,6 +142,38 @@ def main():
     http_server.listen(url.port, url.hostname)
     log.info("Running service now!!!! --------------")
     IOLoop.current().start()
+
+
+def get_configfile() -> str:
+    """ Finds the JupyterHub configuration file. """
+    filename = get_configfile_from_cmdline()
+    if filename:
+        return filename
+
+    if os.path.exists("/etc/jupyterhub/jupyterhub_config.py"):
+        return "/etc/jupyterhub/jupyterhub_config.py"
+
+    raise FileNotFoundError("Could not find JupyterHub configuration file")
+    
+
+def get_configfile_from_cmdline() -> Optional[str]:
+    """ Tries to find the JupyterHub configuration file, when the service is ran
+        as a subprocess of JupyterHub. """
+    cmdline = psutil.Process().parent().cmdline()
+    i = cmdline.index("-f")
+    if i == -1 or i == len(cmdline) - 1:
+        return None
+    return cmdline[i+1]
+
+
+def get_consumers():
+    """ Gets the LTI 1.1 consumer keys and secrets from the configuration file."""
+    configfile = get_configfile()
+    app2 = traitlets.config.Application()
+    app2.load_config_file(configfile)
+    AuthKlass = app2.config.JupyterHub.authenticator_class
+    auth: LTI11Authenticator = AuthKlass(config=app2.config)
+    return auth.consumers
 
 
 if __name__ == '__main__':
