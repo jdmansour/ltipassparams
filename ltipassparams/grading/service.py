@@ -57,9 +57,10 @@ class GradingHandler(HubAuthenticated, RequestHandler):
         for sess in storage:
             if sess.lti_params['user_id'] != user['name']:
                 continue
-            self.write(f"Folder: {sess.checkout_root}\n")
-            self.write(f"Start file: {sess.checkout_location}\n")
-            self.write(f"LTI Session:\n")
+            self.write(f"checkout_root: {sess.checkout_root}\n")
+            self.write(f"checkout_location: {sess.checkout_location}\n")
+            self.write(f"oauth_consumer_key: {sess.oauth_consumer_key}\n")
+            self.write(f"lti_params:\n")
             self.write(json.dumps(sess.lti_params, indent=2) + "\n\n")
 
         self.write("</pre></html>")

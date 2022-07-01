@@ -17,6 +17,7 @@ PICKLE_FILE = "/opt/tljh/state/ltipassparams.pickle"
 @dataclass
 class LtiSession:
     lti_params: dict
+    oauth_consumer_key: str
     checkout_location: Optional[str] = None
 
     @property
@@ -57,14 +58,15 @@ def save_storage():
 
 
 
-def store_launch_request(auth_state: dict):
+def store_launch_request(auth_state: dict, oauth_consumer_key: str):
     storage = get_storage()
 
     log.info("Storing launch request: %r", auth_state)
 
     data = auth_state.copy()
 
-    new_session = LtiSession(lti_params=data)
+    new_session = LtiSession(
+        lti_params=data, oauth_consumer_key=oauth_consumer_key)
     try:
         log.info("Getting custom_next")
         custom_next = auth_state['custom_next']
@@ -108,6 +110,10 @@ def find_nbgitpuller_lti_session(path: str, user_id: str) -> Optional[LtiSession
 
     # TODO: we currently get "checkout_location is not a valid LTI launch param."
     # we need to store the LTI params separately from the context.
+
+    # TODO: Should we include oauth_consumer_key as a parameter?
+    # Theoretically, there could be multiple LMS that access the same file. But
+    # there would be no way to choose which one to report back to.
 
     storage = get_storage()
 

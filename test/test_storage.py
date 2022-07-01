@@ -37,12 +37,12 @@ def test_storage(temp_storage):
     sessions = storage.get_storage()
     assert(len(sessions) == 0)
 
-    storage.store_launch_request(SAMPLE_AUTH_STATE)
+    storage.store_launch_request(SAMPLE_AUTH_STATE, '123456')
     assert(len(sessions) == 1)
 
 
 def test_retrieve(temp_storage):
-    storage.store_launch_request(SAMPLE_AUTH_STATE)
+    storage.store_launch_request(SAMPLE_AUTH_STATE, '123456')
     session = storage.find_nbgitpuller_lti_session(
         'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb',
         'myuser')
