@@ -41,7 +41,7 @@ There is a bug in jupyterhub regarding enable_auth_state.  As a workaround, appl
 
 ### Hub side
 
-The hub part is implemented by subclassing the authenticator. Maybe it would even be sufficient to use the `auth_state_hook` configuration option without a class?
+The hub part is implemented by subclassing the authenticator.  We cannot use the `c.Spawner.auth_state_hook` option, since that only gets called when a new server is spawned - not every time the user clicks a LTI link.
 
 - LMS sends the user to the JupyterHub
 - User is authenticated
@@ -65,6 +65,7 @@ For testing, we have a userextension that adds some debugging info to the "tree"
   - Is this notebook part of a nbgitpuller checkout / LTI session
 
 ## Todo
+- Make server load sessions again when a new one is opened 
 - Use a proper database for LTI sessions, e.g. SQLite
 - Make LTI sessions expire?
 
