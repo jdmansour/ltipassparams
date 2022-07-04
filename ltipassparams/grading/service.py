@@ -113,11 +113,14 @@ class GradingHandler(HubAuthenticated, RequestHandler):
             consumer_secret=secret,
             params=session.lti_params
         )
-        res = p.post_replace_result(score)
-
-        self.set_header('content-type', 'text/plain')
+        res: lti.OutcomeResponse = p.post_replace_result(score)
+        
+        self.set_header('content-type', 'text/plain; charset=utf-8')
 
         self.write("res: %r\n" % (res,))
+        self.write(f"{res.code_major}, {res.description}\n")
+        self.write(f"Response code: {res.response_code}\n")
+        self.write(str(res.post_response.content, encoding='utf-8', errors='replace') + "\n")
         self.write("res.is_success(): %r\n\n" % (res.is_success(),))
         self.write("LTI parameters:\n" + json.dumps(session.lti_params, indent=1, sort_keys=True))
         self.write(f"\n\nReported back score {score}")
