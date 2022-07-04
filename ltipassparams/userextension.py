@@ -62,9 +62,9 @@ def NotebookHandler_get(self: NotebookHandler, original_method, path):
     log.info("Found: %r", row)
     # found
     
-    self.additional_vars['launch_presentation_return_url'] = row['launch_presentation_return_url']
-    self.additional_vars['context_title'] = row['context_title']
-    self.additional_vars['resource_link_id'] = row['resource_link_id']
+    self.additional_vars['launch_presentation_return_url'] = row.get('launch_presentation_return_url', '-')
+    self.additional_vars['context_title'] = row.get('context_title', '-')
+    self.additional_vars['resource_link_id'] = row.get('resource_link_id', '-')
 
     file_is_target = (session.checkout_location == path)
     self.additional_vars['file_is_target'] = file_is_target
