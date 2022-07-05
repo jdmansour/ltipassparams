@@ -122,9 +122,9 @@ def find_nbgitpuller_lti_session(db: Session, path: str, user_id: str) -> Option
 
     # Try to find a checkout that this file is part of
     find_root = path.split('/')[0]
-    session = db.query(LtiSession).where(
-        LtiSession.checkout_root == find_root,
-        LtiSession.user_id == user_id
-    ).first()
+    candidates = db.query(LtiSession).where(LtiSession.user_id == user_id)
+    for sess in candidates:
+        if sess.checkout_root == find_root:
+            return sess
 
-    return session
+    return None

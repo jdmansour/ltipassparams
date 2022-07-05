@@ -47,6 +47,28 @@ def test_retrieve(temp_db):
         'myuser')
 
     assert session
-    session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
-    session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
-    session.checkout_root == 'MLiP'
+    assert session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
+    assert session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
+    assert session.checkout_root == 'MLiP'
+
+
+def test_retrieve_same_root(temp_db):
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
+    session = storage.find_nbgitpuller_lti_session(
+        temp_db,
+        'MLiP/Other',
+        'myuser')
+
+    assert session
+    assert session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
+    assert session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
+    assert session.checkout_root == 'MLiP'
+
+def test_retrieve_fails(temp_db):
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
+    session = storage.find_nbgitpuller_lti_session(
+        temp_db,
+        'Non-Existing/Path',
+        'myuser')
+
+    assert session is None
