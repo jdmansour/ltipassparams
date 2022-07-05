@@ -21,7 +21,9 @@ import lti
 import psutil
 import traitlets.config
 import traitlets.traitlets
+from traitlets.utils.importstring import import_item
 from jupyterhub.services.auth import HubAuthenticated
+from jupyterhub.auth import Authenticator
 from ltiauthenticator.lti11.auth import LTI11Authenticator
 from ltipassparams import storage
 from ltipassparams.storage import find_nbgitpuller_lti_session
@@ -29,6 +31,7 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, authenticated
 
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("grading-service")
 
 Session = storage.get_session_factory()
@@ -176,9 +179,20 @@ def get_configfile_from_cmdline() -> Optional[str]:
 def get_consumers():
     """ Gets the LTI 1.1 consumer keys and secrets from the configuration file."""
     configfile = get_configfile()
+
+    # Load the traitlets configuration
     app2 = traitlets.config.Application()
     app2.load_config_file(configfile)
-    AuthKlass = app2.config.JupyterHub.authenticator_class
+
+    # This can be a string or the class itself, so we might need evaluate it
+    config_value = app2.config.JupyterHub.authenticator_class
+    if isinstance(config_value, str):
+        AuthKlass = import_item(config_value)
+    else:
+        AuthKlass = config_value
+    assert issubclass(AuthKlass, Authenticator)
+
+    # Instantiate the class, in order to get the list of consumers
     auth: LTI11Authenticator = AuthKlass(config=app2.config)
     return auth.consumers
 
