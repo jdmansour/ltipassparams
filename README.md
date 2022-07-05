@@ -4,22 +4,34 @@ When the user clicks an nbgitpuller link in their learning management system (LM
 
 ## Installation
 
-As a prerequisite, you to set up the ltiauthenticator for Jupyter.
-
-Install via pip. When installing for development (`install -e .`), you can link the configuration files, otherwise copy them.
+This package has been tested with The Littlest JupyterHub (TLJH).  As a prerequisite, install `ltiauthenticator` and `nbgitpuller`. Then install this via pip. The following command makes a development install, so the source files are linked and not copied.
 
 ```bash
 sudo /opt/tljh/hub/bin/pip install -e .
-# Install the grading service (demonstration)
-sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_grading.py /opt/tljh/config/jupyterhub_config.d/
 ```
 
 Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
 
     c.Authenticator.enable_auth_state = True
+    c.JupyterHub.authenticator_class = 'ltipassparams.hubside.MyLTI11Authenticator'
 
-    import ltipassparams.auth
-    c.JupyterHub.authenticator_class = ltipassparams.auth.MyLTI11Authenticator
+    # Enable grading service
+    import sys
+    c.JupyterHub.services = [
+        {
+            'name': 'grading-service',
+            'url': 'http://127.0.0.1:10101/',
+            'command': [sys.executable, '-m', 'ltipassparams.grading.service'],
+        },
+    ]
+
+    # Add the LTI 1.1 consumer key and shared secret.
+    c.LTI11Authenticator.consumers = {
+        # <put your key and secret here>
+    }
+
+    # Use an LTI 1.1 parameter to set the username.
+    c.LTI11Authenticator.username_key = "user_id"
 
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
@@ -33,6 +45,10 @@ and then add the following to `/etc/systemd/system/jupyterhub.service`, replacin
 There is a bug in jupyterhub regarding enable_auth_state.  As a workaround, apply the following patch:
 
     sudo patch /opt/tljh/hub/lib/python3.8/site-packages/jupyterhub/crypto.py < patch/enable_auth_state_bugfix.patch
+
+Finally, restart your JupyterHub:
+
+    sudo systemctl restart jupyterhub
 
 ## Architecture
 
@@ -55,3 +71,4 @@ The service checks if the file is part of an NBGitpuller checkout, finds which L
 
 ## Todo
 - Make LTI sessions expire?
+- Find a better way to set JUPYTERHUB_CRYPT_KEY - is the systemd service file safe?
