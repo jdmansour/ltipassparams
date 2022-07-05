@@ -12,26 +12,28 @@ sudo /opt/tljh/hub/bin/pip install -e .
 
 Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
 
-    c.Authenticator.enable_auth_state = True
-    c.JupyterHub.authenticator_class = 'ltipassparams.auth.MyLTI11Authenticator'
+```python
+c.Authenticator.enable_auth_state = True
+c.JupyterHub.authenticator_class = 'ltipassparams.auth.MyLTI11Authenticator'
 
-    # Enable grading service
-    import sys
-    c.JupyterHub.services = [
-        {
-            'name': 'grading-service',
-            'url': 'http://127.0.0.1:10101/',
-            'command': [sys.executable, '-m', 'ltipassparams.grading_service'],
-        },
-    ]
+# Enable grading service
+import sys
+c.JupyterHub.services = [
+    {
+        'name': 'grading-service',
+        'url': 'http://127.0.0.1:10101/',
+        'command': [sys.executable, '-m', 'ltipassparams.grading_service'],
+    },
+]
 
-    # Add the LTI 1.1 consumer key and shared secret.
-    c.LTI11Authenticator.consumers = {
-        # <put your key and secret here>
-    }
+# Add the LTI 1.1 consumer key and shared secret.
+c.LTI11Authenticator.consumers = {
+    # <put your key and secret here>
+}
 
-    # Use an LTI 1.1 parameter to set the username.
-    c.LTI11Authenticator.username_key = "user_id"
+# Use an LTI 1.1 parameter to set the username.
+c.LTI11Authenticator.username_key = "user_id"
+```
 
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
