@@ -1,6 +1,3 @@
-
-import tempfile
-
 import pytest
 from ltipassparams import storage
 

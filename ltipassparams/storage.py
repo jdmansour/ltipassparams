@@ -70,13 +70,12 @@ def store_launch_request(db: Session, auth_state: dict, oauth_consumer_key: str)
             urlpath = parsed['urlpath']
             if urlpath.startswith("tree/"):
                 urlpath = urlpath[5:]
-            log.info("checkout location: %r" % urlpath)
+            log.info("checkout location: %r", urlpath)
             new_session.checkout_location = urlpath
 
         # log.info("Parsed: %r", parsed)
     except KeyError:
         log.exception("An exception occurred")
-        pass
 
     # check if this pair of resource_link_id / user_id exists
 
