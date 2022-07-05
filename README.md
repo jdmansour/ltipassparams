@@ -1,6 +1,6 @@
-This code helps move LTI parameters from jupyterhub to the user server, in order to access them there.
+This package shows how to access LTI serssion parameters, for example in order to report scores back to a LTI Tool Consumer. It is based on and extends the [ltiauthenticator](https://github.com/jupyterhub/ltiauthenticator) packages, and understands [nbgitpuller](https://github.com/jupyterhub/nbgitpuller) links.
 
-Currently this works via environment variables.  The mid-term goal would be to store LTI sessions in some kind of database on the hub side, and then to link these sessions to LTI invocations (like nbgitpuller links).  Then you could report back a score to the LTI consumer on completion of a task.
+When the user clicks an nbgitpuller link in their learning management system (LMS), they are authenticated via LTI, and the lession is cloned from Git. This code remembers the LTI session as well as the place the files were checked out to. A sample service is provided that allows you to report a score back to the LMS. In a real-world usage, this would be integrated with a grading tool such as nbgrader or otter-grader.
 
 ## Installation
 
@@ -18,8 +18,8 @@ Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_co
 
     c.Authenticator.enable_auth_state = True
 
-    import ltipassparams.hubside
-    c.JupyterHub.authenticator_class = ltipassparams.hubside.MyLTI11Authenticator
+    import ltipassparams.auth
+    c.JupyterHub.authenticator_class = ltipassparams.auth.MyLTI11Authenticator
 
 Then you must set a crypt key to secure the auth_state. Generate a key:
 
