@@ -1,6 +1,6 @@
 
 import logging
-from typing import Optional
+from typing import Optional, Type
 
 from sqlalchemy import (JSON, Column, Integer, String, UniqueConstraint,
                         create_engine)
@@ -15,7 +15,7 @@ log.setLevel(logging.DEBUG)
 DB_URL = 'sqlite:///lti_sessions.sqlite'
 
 
-def get_session_factory(db_url=DB_URL):
+def get_session_factory(db_url: str = DB_URL) -> Type[Session]:
     engine = create_engine(db_url, future=True)
     Base.metadata.create_all(engine)
     return sessionmaker(engine, future=True)
@@ -48,8 +48,6 @@ def get_session_count(db: Session):
 
 
 def store_launch_request(db: Session, auth_state: dict, oauth_consumer_key: str):
-    #storage = get_storage()
-
     log.info("Storing launch request: %r", auth_state)
 
     data = auth_state.copy()
@@ -73,12 +71,10 @@ def store_launch_request(db: Session, auth_state: dict, oauth_consumer_key: str)
             log.info("checkout location: %r", urlpath)
             new_session.checkout_location = urlpath
 
-        # log.info("Parsed: %r", parsed)
     except KeyError:
         log.exception("An exception occurred")
 
     # check if this pair of resource_link_id / user_id exists
-
     existing = (db.query(LtiSession)
                 .filter(LtiSession.resource_link_id == new_session.resource_link_id,
                         LtiSession.user_id == new_session.user_id)
@@ -104,12 +100,9 @@ def find_nbgitpuller_lti_session(db: Session, path: str, user_id: str) -> Option
     """ Finds the LTI session belonging to a file that was
         checked out by nbgitpuller. """
 
-    # TODO: we currently get "checkout_location is not a valid LTI launch param."
-    # we need to store the LTI params separately from the context.
-
-    # TODO: Should we include oauth_consumer_key as a parameter?
-    # Theoretically, there could be multiple LMS that access the same file. But
-    # there would be no way to choose which one to report back to.
+    # Should we distinguish multiple LMS, by including oauth_consumer_key?
+    # Theoretically, there could be multiple LMS that use the same checkout
+    # location. But there would be no way to choose which one to report back to.
 
     session = db.query(LtiSession).where(
         LtiSession.checkout_location == path,
