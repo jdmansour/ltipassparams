@@ -13,7 +13,7 @@ sudo /opt/tljh/hub/bin/pip install -e .
 Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
 
     c.Authenticator.enable_auth_state = True
-    c.JupyterHub.authenticator_class = 'ltipassparams.hubside.MyLTI11Authenticator'
+    c.JupyterHub.authenticator_class = 'ltipassparams.auth.MyLTI11Authenticator'
 
     # Enable grading service
     import sys
