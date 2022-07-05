@@ -10,11 +10,8 @@ Install via pip. When installing for development (`install -e .`), you can link 
 
 ```bash
 sudo /opt/tljh/hub/bin/pip install -e .
-sudo /opt/tljh/user/bin/pip install -e .
 # Install the grading service (demonstration)
 sudo ln -fs $PWD/config/jupyterhub_config.d/ltipassparams_grading.py /opt/tljh/config/jupyterhub_config.d/
-# Install a user server extension (this was just a test)
-# sudo ln -fs $PWD/jupyter-config/jupyter_notebook_config.d/ltipassparams.json /opt/tljh/user/etc/jupyter/jupyter_notebook_config.d/
 ```
 
 Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_config.d/lti.py`:
@@ -56,35 +53,5 @@ You can access a demonstration endpoint at `/services/grading-service/`, where y
 
 The service checks if the file is part of an NBGitpuller checkout, finds which LTI session that belongs to, and reports back the score.
 
-### User-server side
-
-**⚠️ Note: the following is obsolete at the moment. It doesn't really make sense to expose most of the LTI variables to the user server.**
-
-For testing, we have a userextension that adds some debugging info to the "tree" view and the "notebook" view, including:
-  - Current LTI user
-  - Is this notebook part of a nbgitpuller checkout / LTI session
-
 ## Todo
-- Make server load sessions again when a new one is opened 
-- Use a proper database for LTI sessions, e.g. SQLite
 - Make LTI sessions expire?
-
-## Compatibility
-
-There are two different versions of server extensions. TLJH is based on jupyterhub 1.5, which uses the "classic jupyter notebook server" based on tornado. Jupyterhub 2.0 uses the newer "Jupyter Server".
-
-    $ /opt/tljh/hub/bin/jupyterhub --version
-    Initializing JupyterHub: <jupyterhub.app.JupyterHub object at 0x7f79601af0d0>
-    1.5.0
-
-This means it currently loads the configuration from 
-
-    /opt/tljh/user/etc/jupyter/jupyter_notebook_config.d/ltipassparams.json
-
-and not from
-
-    /opt/tljh/user/etc/jupyter/jupyter_server_config.d/ltipassparams.json
-
-If Jupyterhub 2.0 is used, we will need to port this extension. See [Migrating an extension to use Jupyter Server][1]
-
-[1]: https://jupyter-server.readthedocs.io/en/latest/developers/extensions.html#migrating-an-extension-to-use-jupyter-server
