@@ -1,23 +1,40 @@
 
-import pickle
-from dataclasses import dataclass
-from typing import List, Optional
+import logging
+from typing import Optional, Type
 
-from ltipassparams.utils import find, indexof
+from sqlalchemy import (JSON, Column, Integer, String, UniqueConstraint,
+                        create_engine)
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm.decl_api import DeclarativeMeta
+
 from ltipassparams.nbgitpuller_helper import parse_nbgitpuller_link
 
-_storage: Optional[List] = None
-
-import logging
 log = logging.getLogger("JupyterHub.ltipassparams")
 log.setLevel(logging.DEBUG)
 
-PICKLE_FILE = "/opt/tljh/state/ltipassparams.pickle"
+DB_URL = 'sqlite:///lti_sessions.sqlite'
 
-@dataclass
-class LtiSession:
-    lti_params: dict
-    checkout_location: Optional[str] = None
+
+def get_session_factory(db_url: str = DB_URL) -> Type[Session]:
+    engine = create_engine(db_url, future=True)
+    Base.metadata.create_all(engine)
+    return sessionmaker(engine, future=True)
+
+
+Base: DeclarativeMeta = declarative_base()
+
+
+class LtiSession(Base):
+    __tablename__ = 'lti_sessions'
+    id = Column(Integer, primary_key=True)
+    lti_params = Column(JSON, nullable=False)
+    oauth_consumer_key = Column(String, nullable=False)
+    checkout_location = Column(String, nullable=True)
+    resource_link_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=False)
+    __table_args__ = (
+        UniqueConstraint('resource_link_id', 'user_id'),
+    )
 
     @property
     def checkout_root(self) -> Optional[str]:
@@ -25,46 +42,21 @@ class LtiSession:
             return None
         return self.checkout_location.split("/")[0]
 
-def fix(row):
-    if isinstance(row, dict):
-        tmp = row.copy()
-        checkout_location = tmp.pop('checkout_location', None)
-        return LtiSession(checkout_location=checkout_location, lti_params=tmp)
-    else:
-        return row
 
-def load_storage() -> List[LtiSession]:
-    try:
-        with open(PICKLE_FILE, "rb") as f:
-            s = pickle.load(f)
-            return [fix(row) for row in s]
-    except (FileNotFoundError, EOFError):
-        return []
-
-def get_storage() -> List[LtiSession]:
-    global _storage
-    if _storage is None:
-        _storage = load_storage()
-    return _storage
-
-def save_storage():
-    global _storage
-    log.debug("In save_storage")
-    # log.debug("_storage: %r", _storage)
-    # log.debug("get_storage(): %r", get_storage())
-    with open(PICKLE_FILE, "wb") as f:
-        pickle.dump(get_storage(), f)
+def get_session_count(db: Session):
+    return db.query(LtiSession).count()
 
 
-
-def store_launch_request(auth_state: dict):
-    storage = get_storage()
-
+def store_launch_request(db: Session, auth_state: dict, oauth_consumer_key: str):
     log.info("Storing launch request: %r", auth_state)
 
     data = auth_state.copy()
 
-    new_session = LtiSession(lti_params=data)
+    new_session = LtiSession(
+        lti_params=data,
+        oauth_consumer_key=oauth_consumer_key,
+        resource_link_id=data['resource_link_id'],
+        user_id=data['user_id'])
     try:
         log.info("Getting custom_next")
         custom_next = auth_state['custom_next']
@@ -76,56 +68,55 @@ def store_launch_request(auth_state: dict):
             urlpath = parsed['urlpath']
             if urlpath.startswith("tree/"):
                 urlpath = urlpath[5:]
-            log.info("checkout location: %r" % urlpath)
+            log.info("checkout location: %r", urlpath)
             new_session.checkout_location = urlpath
 
-        # log.info("Parsed: %r", parsed)
     except KeyError:
         log.exception("An exception occurred")
-        pass
 
     # check if this pair of resource_link_id / user_id exists
+    existing = (db.query(LtiSession)
+                .filter(LtiSession.resource_link_id == new_session.resource_link_id,
+                        LtiSession.user_id == new_session.user_id)
+                .first())
 
-    i = indexof(storage, lambda s: (
-        s.lti_params['resource_link_id'] == data['resource_link_id'] and
-        s.lti_params['user_id'] == data['user_id']
-    ))
-
-    if i is not None:
-        log.info("Updating exising session for this resource_link_id / user_id pair")
-        storage[i] = new_session
+    if existing:
+        log.info("Found existing session")
+        existing.lti_params = new_session.lti_params
+        existing.checkout_location = new_session.checkout_location
+        existing.oauth_consumer_key = new_session.oauth_consumer_key
+        db.commit()
     else:
-        storage.append(new_session)
+        log.info("Storing new session")
+        db.add(new_session)
+        db.commit()
 
     log.info("checkout_location: %r", new_session.checkout_location)
-    log.info("%d items in storage", len(storage))
-    save_storage()
+    num_sessions = db.query(LtiSession).count()
+    log.info("%d items in storage", num_sessions)
 
 
-def find_nbgitpuller_lti_session(path: str, user_id: str) -> Optional[LtiSession]:
+def find_nbgitpuller_lti_session(db: Session, path: str, user_id: str) -> Optional[LtiSession]:
     """ Finds the LTI session belonging to a file that was
         checked out by nbgitpuller. """
 
-    # TODO: we currently get "checkout_location is not a valid LTI launch param."
-    # we need to store the LTI params separately from the context.
+    # Should we distinguish multiple LMS, by including oauth_consumer_key?
+    # Theoretically, there could be multiple LMS that use the same checkout
+    # location. But there would be no way to choose which one to report back to.
 
-    storage = get_storage()
-
-    # Try to find this particular file
-    session = find(storage, lambda s: (
-        s.checkout_location == path and
-        s.lti_params['user_id'] == user_id
-    ))
+    session = db.query(LtiSession).where(
+        LtiSession.checkout_location == path,
+        LtiSession.user_id == user_id
+    ).first()
 
     if session is not None:
         return session
 
     # Try to find a checkout that this file is part of
     find_root = path.split('/')[0]
-    session = find(storage, lambda s: (
-        s.checkout_root == find_root and
-        s.lti_params['user_id'] == user_id
-    ))
+    candidates = db.query(LtiSession).where(LtiSession.user_id == user_id)
+    for sess in candidates:
+        if sess.checkout_root == find_root:
+            return sess
 
-    return session
-
+    return None

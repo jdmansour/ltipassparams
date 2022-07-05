@@ -1,6 +1,3 @@
-
-import tempfile
-
 import pytest
 from ltipassparams import storage
 
@@ -24,30 +21,51 @@ SAMPLE_AUTH_STATE = {
     'user_id': 'myuser'
 }
 
+
+
 @pytest.fixture
-def temp_storage():
-    with tempfile.NamedTemporaryFile(suffix='.pickle') as tmp:
-        storage.PICKLE_FILE = tmp.name
-        yield
+def temp_db():
+    Session = storage.get_session_factory("sqlite:///:memory:")
+    yield Session()
 
 
-def test_storage(temp_storage):
-    assert storage.PICKLE_FILE != "/opt/tljh/state/ltipassparams.pickle"
+def test_storage(temp_db):
+    assert(storage.get_session_count(temp_db) == 0)
 
-    sessions = storage.get_storage()
-    assert(len(sessions) == 0)
-
-    storage.store_launch_request(SAMPLE_AUTH_STATE)
-    assert(len(sessions) == 1)
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
+    assert(storage.get_session_count(temp_db) == 1)
 
 
-def test_retrieve(temp_storage):
-    storage.store_launch_request(SAMPLE_AUTH_STATE)
+def test_retrieve(temp_db):
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
     session = storage.find_nbgitpuller_lti_session(
+        temp_db,
         'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb',
         'myuser')
 
     assert session
-    session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
-    session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
-    session.checkout_root == 'MLiP'
+    assert session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
+    assert session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
+    assert session.checkout_root == 'MLiP'
+
+
+def test_retrieve_same_root(temp_db):
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
+    session = storage.find_nbgitpuller_lti_session(
+        temp_db,
+        'MLiP/Other',
+        'myuser')
+
+    assert session
+    assert session.lti_params['context_id'] == '5a9ff6ef-82ef-4175-97b6-65976d2b8783'
+    assert session.checkout_location == 'MLiP/Modul 1/MLiP_Modul_1_bias_variance.ipynb'
+    assert session.checkout_root == 'MLiP'
+
+def test_retrieve_fails(temp_db):
+    storage.store_launch_request(temp_db, SAMPLE_AUTH_STATE, '123456')
+    session = storage.find_nbgitpuller_lti_session(
+        temp_db,
+        'Non-Existing/Path',
+        'myuser')
+
+    assert session is None
