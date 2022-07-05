@@ -21,7 +21,7 @@ Add the following to your configuration, e.g. in `/opt/tljh/config/jupyterhub_co
         {
             'name': 'grading-service',
             'url': 'http://127.0.0.1:10101/',
-            'command': [sys.executable, '-m', 'ltipassparams.grading.service'],
+            'command': [sys.executable, '-m', 'ltipassparams.grading_service'],
         },
     ]
 
