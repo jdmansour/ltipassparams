@@ -9,6 +9,7 @@ from jupyterhub.handlers import BaseHandler
 
 from . import storage
 
+Session = storage.get_session_factory()
 
 class MyLTI11Authenticator(LTI11Authenticator):
     async def authenticate(self, handler: BaseHandler, data: dict = None):
@@ -18,5 +19,6 @@ class MyLTI11Authenticator(LTI11Authenticator):
             self.log.info("LTI Authentication successful! ==============")
             args = convert_request_to_dict(handler.request.arguments)
             oauth_consumer_key = args['oauth_consumer_key']
-            storage.store_launch_request(result['auth_state'], oauth_consumer_key)
+            with Session() as db:
+                storage.store_launch_request(db, result['auth_state'], oauth_consumer_key)
         return result

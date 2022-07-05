@@ -12,24 +12,26 @@ import html
 import json
 import logging
 import os
-from pprint import pformat
 import textwrap
+from pprint import pformat
 from typing import Optional
 from urllib.parse import urlparse
 
 import lti
+import psutil
+import traitlets.config
+import traitlets.traitlets
 from jupyterhub.services.auth import HubAuthenticated
-from ltipassparams.storage import find_nbgitpuller_lti_session, get_storage
+from ltiauthenticator.lti11.auth import LTI11Authenticator
+from ltipassparams import storage
+from ltipassparams.storage import find_nbgitpuller_lti_session
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, authenticated
-import traitlets.config
-import traitlets.traitlets
-import psutil
-
-from ltiauthenticator.lti11.auth import LTI11Authenticator
 
 log = logging.getLogger("grading-service")
+
+Session = storage.get_session_factory()
 
 class GradingHandler(HubAuthenticated, RequestHandler):
     @authenticated
@@ -61,15 +63,15 @@ class GradingHandler(HubAuthenticated, RequestHandler):
         <h2>LTI Sessions for this user:</h2>
         <pre>"""))
 
-        storage = get_storage()
-        for sess in storage:
-            if sess.lti_params['user_id'] != user['name']:
-                continue
-            self.write(f"checkout_root: {sess.checkout_root}\n")
-            self.write(f"checkout_location: {sess.checkout_location}\n")
-            self.write(f"oauth_consumer_key: {sess.oauth_consumer_key}\n")
-            self.write(f"lti_params:\n")
-            self.write(json.dumps(sess.lti_params, indent=2) + "\n\n")
+        with Session() as db:
+            sessions = db.query(storage.LtiSession).filter(storage.LtiSession.user_id == user['name'])
+
+            for sess in sessions:
+                self.write(f"checkout_root: {sess.checkout_root}\n")
+                self.write(f"checkout_location: {sess.checkout_location}\n")
+                self.write(f"oauth_consumer_key: {sess.oauth_consumer_key}\n")
+                self.write(f"lti_params:\n")
+                self.write(json.dumps(sess.lti_params, indent=2) + "\n\n")
 
         self.write("</pre><pre>")
         self.write("Environment:\n" + pformat(dict(os.environ)) + "\n")
@@ -87,7 +89,8 @@ class GradingHandler(HubAuthenticated, RequestHandler):
         # notebook = "MLiP/Modul%201/MLiP_Modul_1_bias_variance.ipynb"
         notebook = self.get_argument('notebook_path')
         user_id = user_model['name']
-        session = find_nbgitpuller_lti_session(notebook, user_id)
+        with Session() as db:
+            session = find_nbgitpuller_lti_session(db, notebook, user_id)
 
         if not session:
             self.set_header('content-type', 'text/plain')
@@ -95,9 +98,10 @@ class GradingHandler(HubAuthenticated, RequestHandler):
             self.write(f"No session found for user {user_id} and path {notebook}\n")
 
             # debugging
-            storage = get_storage()
-            for sess in storage:
-                self.write(f"{sess.checkout_root}, {sess.checkout_location}, {sess.lti_params['user_id']}\n")
+            with Session() as db:
+                sessions = db.query(storage.LtiSession).all()
+                for sess in sessions:
+                    self.write(f"{sess.checkout_root}, {sess.checkout_location}, {sess.lti_params['user_id']}\n")
 
             return
         
