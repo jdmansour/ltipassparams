@@ -22,8 +22,9 @@ import psutil
 import traitlets.config
 import traitlets.traitlets
 from traitlets.utils.importstring import import_item
-from jupyterhub.services.auth import HubAuthenticated
+from jupyterhub.services.auth import HubOAuthenticated, HubOAuthCallbackHandler
 from jupyterhub.auth import Authenticator
+from jupyterhub.utils import url_path_join
 from ltiauthenticator.lti11.auth import LTI11Authenticator
 from ltipassparams import storage
 from ltipassparams.storage import find_nbgitpuller_lti_session
@@ -36,7 +37,7 @@ log = logging.getLogger("grading-service")
 
 Session = storage.get_session_factory()
 
-class GradingHandler(HubAuthenticated, RequestHandler):
+class GradingHandler(HubOAuthenticated, RequestHandler):
     @authenticated
     def get(self):
         self.write(textwrap.dedent("""\
@@ -140,7 +141,7 @@ def main():
     app = Application(
         [
             (prefix, GradingHandler),
-            # (url_path_join(prefix, 'oauth_callback'), HubOAuthCallbackHandler),
+            (url_path_join(prefix, 'oauth_callback'), HubOAuthCallbackHandler),
             (r'.*', GradingHandler),
         ],
         cookie_secret=os.urandom(32),
